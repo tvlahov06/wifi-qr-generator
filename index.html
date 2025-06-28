@@ -1,0 +1,229 @@
+
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wi-Fi QR Kod Generator</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="favicon.ico" type="image/x-icon" />
+  <meta name="theme-color" content="#3b82f6" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js')
+        .then(() => console.log("✅ Service Worker registriran"))
+        .catch(err => console.error("❌ Greška u Service Workeru", err));
+    }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
+  <style>
+    :root {
+      --bg-light: #f3f4f6;
+      --text-light: #111827;
+      --input-bg-light: #ffffff;
+      --border-light: #ccc;
+
+      --bg-dark: #1f2937;
+      --text-dark: #f9fafb;
+      --input-bg-dark: #374151;
+      --border-dark: #6b7280;
+
+      --accent: #3b82f6;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-color: var(--bg-light);
+      color: var(--text-light);
+    }
+
+    h1 {
+      margin-bottom: 10px;
+    }
+
+    label {
+      margin-top: 10px;
+      display: block;
+    }
+
+    input, select {
+      padding: 10px;
+      font-size: 16px;
+      width: 300px;
+      border-radius: 8px;
+      border: 1px solid var(--border-light);
+      background-color: var(--input-bg-light);
+      color: var(--text-light);
+      box-sizing: border-box;
+      margin-bottom: 10px;
+    }
+
+    button {
+      padding: 12px 20px;
+      font-size: 16px;
+      background-color: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    #qrcode-wrapper {
+      margin-top: 20px;
+      padding: 12px;
+      border: 2px solid var(--border-light);
+      border-radius: 12px;
+      background-color: var(--input-bg-light);
+      width: 256px;
+      height: 256px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background-color: var(--bg-dark);
+        color: var(--text-dark);
+      }
+
+      input, select {
+        background-color: var(--input-bg-dark);
+        color: var(--text-dark);
+        border: 1px solid var(--border-dark);
+      }
+
+      #qrcode-wrapper {
+        border-color: var(--border-dark);
+        background-color: var(--input-bg-dark);
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Wi-Fi QR Kod Generator</h1>
+  <label for="ssid">Naziv mreže (SSID):</label>
+  <input type="text" id="ssid" placeholder="MojaMreza" />
+
+  <label for="password">Lozinka:</label>
+  <input type="text" id="password" placeholder="Unesi lozinku" />
+
+  <label for="encryption">Zaštita:</label>
+  <select id="encryption">
+    <option value="WPA">WPA/WPA2</option>
+    <option value="WEP">WEP</option>
+    <option value="nopass">Otvorena mreža</option>
+  </select>
+
+  <button onclick="generirajWifiQR()">Generiraj QR Kod</button>
+
+  <div id="qrcode-wrapper">
+    <div id="qrcode"></div>
+  </div>
+
+  <button onclick="preuzmiQR()">Preuzmi QR kao sliku</button>
+
+  <script>
+    let downloadCanvas = null;
+
+    function generirajWifiQR() {
+      const ssid = document.getElementById("ssid").value.trim();
+      const password = document.getElementById("password").value.trim();
+      const encryption = document.getElementById("encryption").value;
+      const qrcodeDiv = document.getElementById("qrcode");
+      qrcodeDiv.innerHTML = "";
+      downloadCanvas = null;
+
+      if (!ssid) {
+        alert("Unesi naziv mreže (SSID).");
+        return;
+      }
+
+      let qrText = `WIFI:T:${encryption};S:${ssid};`;
+      if (encryption !== "nopass") {
+        qrText += `P:${password};`;
+      }
+      qrText += ";";
+
+      const hiddenDiv = document.createElement("div");
+      hiddenDiv.style.display = "none";
+      document.body.appendChild(hiddenDiv);
+      const qrBig = new QRCode(hiddenDiv, {
+        text: qrText,
+        width: 1000,
+        height: 1000,
+        colorDark: "#000000",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.H
+      });
+
+      setTimeout(() => {
+        downloadCanvas = hiddenDiv.querySelector("canvas");
+
+        const previewCanvas = document.createElement("canvas");
+        previewCanvas.width = 256;
+        previewCanvas.height = 256;
+
+        const ctx = previewCanvas.getContext("2d");
+        const img = new Image();
+        img.onload = () => {
+          ctx.drawImage(img, 0, 0, 256, 256);
+        };
+        img.src = downloadCanvas.toDataURL("image/png");
+
+        qrcodeDiv.innerHTML = "";
+        qrcodeDiv.appendChild(previewCanvas);
+      }, 200);
+    }
+
+    function preuzmiQR() {
+      if (!downloadCanvas) {
+        alert("Prvo generiraj QR kod.");
+        return;
+      }
+
+      const dataURL = downloadCanvas.toDataURL("image/png");
+      const link = document.createElement('a');
+      link.href = dataURL;
+      link.download = 'wifi_qr.png';
+      link.click();
+    }
+  </script>
+
+  <div id="install-banner" style="display: none; margin-top: 20px; text-align: center;">
+    <p>💡 Dodaj ovu aplikaciju na početni zaslon za brzi pristup i offline korištenje.</p>
+    <button id="installBtn" style="padding: 10px 20px; background-color: var(--accent); color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Dodaj na početni zaslon</button>
+  </div>
+
+  <script>
+    let deferredPrompt;
+    const installBtn = document.getElementById('installBtn');
+    const installBanner = document.getElementById('install-banner');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installBanner.style.display = 'block';
+    });
+
+    installBtn?.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          console.log('✔️ Dodano na početni zaslon');
+        }
+        deferredPrompt = null;
+        installBanner.style.display = 'none';
+      }
+    });
+  </script>
+</body>
+</html>
